@@ -53,6 +53,26 @@ Item {
   property string userMenuPath: Quickshell.env("HOME") + "/.config/omarchy/extensions/omarchy-menu.jsonc"
   property var defaultMenuItems: []
   property var userMenuItems: []
+
+  // Optional user preferences, read from ~/.config/skal-menu/config.json.
+  // Absent or unreadable, everything falls back to upstream's original
+  // behavior (DuckDuckGo, opened via xdg-open) so installs are unaffected
+  // until someone opts in. See README for the file's shape.
+  property string userConfigPath: Quickshell.env("HOME") + "/.config/skal-menu/config.json"
+  property var userConfig: ({})
+  // A URL template with a literal "{query}" placeholder, so any search
+  // engine works without the plugin needing to know its query param name.
+  readonly property string webSearchUrlTemplate: {
+    var v = String(root.userConfig.webSearchUrl || "")
+    return v.indexOf("{query}") !== -1 ? v : "https://duckduckgo.com/?q={query}"
+  }
+  readonly property string webSearchOpener: {
+    var v = String(root.userConfig.webSearchOpener || "browser").toLowerCase()
+    return v === "webapp" ? "webapp" : "browser"
+  }
+  function webSearchUrl(query) {
+    return root.webSearchUrlTemplate.replace("{query}", encodeURIComponent(query))
+  }
   property bool opened: false
   property string mode: "menu"
   readonly property bool dmenuActive: mode === "select" || mode === "input"
@@ -676,9 +696,10 @@ Item {
       }
 
       // The web-search fallback Walker users lost in the quattro menu
-      // (#7012): always one row beneath whatever matched, Enter opens the
-      // default browser. xdg-open gets the URL as one argv element, so the
-      // query is never re-read as shell syntax.
+      // (#7012): always one row beneath whatever matched, Enter opens it.
+      // The URL is passed as one argv element to the opener, so the query
+      // is never re-read as shell syntax. Engine and opener are both
+      // user-configurable (see root.webSearchEngine / root.webSearchOpener).
       var webRows = []
       if (query.length >= 2) {
         webRows.push({
@@ -690,10 +711,10 @@ Item {
           appId: "",
           label: "Search the web for “" + query + "”",
           target: "",
-          detail: "Opens in your default browser",
+          detail: root.webSearchOpener === "webapp" ? "Opens as a web app" : "Opens in your default browser",
           path: "",
           childCount: 0,
-          action: "https://duckduckgo.com/?q=" + encodeURIComponent(query),
+          action: root.webSearchUrl(query),
           provider: "",
           score: 999999,
           section: ""
@@ -879,7 +900,10 @@ Item {
       var url = String(row.action || "")
       root.opened = false
       root.filterText = ""
-      if (url) Util.execArgv(["xdg-open", url])
+      if (url) {
+        if (root.webSearchOpener === "webapp") Util.execArgv(["omarchy-launch-webapp", url])
+        else Util.execArgv(["xdg-open", url])
+      }
     } else {
       root.applySelected(row.itemId, row.action)
     }
@@ -1112,6 +1136,20 @@ Item {
     printErrors: false
     onLoaded: { root.userMenuItems = root.parseMenuJsonc(text()); root.rebuildItemsFromSources() }
     onLoadFailed: { root.userMenuItems = []; root.rebuildItemsFromSources() }
+    onFileChanged: reload()
+  }
+
+  // Optional preferences file (search engine, web-search opener). Missing
+  // or invalid is not an error: it just means "use the defaults".
+  FileView {
+    id: userConfigFile
+    path: root.userConfigPath
+    watchChanges: true
+    printErrors: false
+    onLoaded: {
+      try { root.userConfig = JSON.parse(text() || "{}") } catch (e) { root.userConfig = ({}) }
+    }
+    onLoadFailed: { root.userConfig = ({}) }
     onFileChanged: reload()
   }
 
