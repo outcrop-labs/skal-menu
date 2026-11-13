@@ -30,6 +30,9 @@ Item {
     // A shell that started mid-update may never have read the shipped menu
     // whole; reading it again here keeps the menu from opening empty.
     if (root.defaultMenuItems.length === 0) defaultMenuFile.reload()
+    // A config file created after the shell started isn't being watched
+    // (there was nothing to watch), so pick it up on the next open.
+    userConfigFile.reload()
 
     if (payload.mode === "select" || payload.mode === "input") {
       root.openDmenu(payload)
@@ -61,6 +64,27 @@ Item {
   // Launch history for frecency ranking: { itemId: { score, last } }.
   readonly property string frecencyPath: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/skal-menu/frecency.json"
   property var frecencyStore: ({})
+
+  // Optional user preferences, read from ~/.config/skal-menu/config.json.
+  // Absent or unreadable, everything falls back to the original behavior
+  // (DuckDuckGo, opened via xdg-open) so installs are unaffected until
+  // someone opts in. See README for the file's shape.
+  property string userConfigPath: Quickshell.env("HOME") + "/.config/skal-menu/config.json"
+  property var userConfig: ({})
+  // A URL template with a literal "{query}" placeholder, so any search
+  // engine works without the plugin needing to know its query param name.
+  // Only http(s) templates are accepted; anything else uses the default.
+  readonly property string webSearchUrlTemplate: {
+    var v = String(root.userConfig.webSearchUrl || "")
+    return (v.indexOf("{query}") !== -1 && /^https?:\/\//i.test(v)) ? v : "https://duckduckgo.com/?q={query}"
+  }
+  readonly property string webSearchOpener: {
+    var v = String(root.userConfig.webSearchOpener || "browser").toLowerCase()
+    return v === "webapp" ? "webapp" : "browser"
+  }
+  function webSearchUrl(query) {
+    return root.webSearchUrlTemplate.replace("{query}", encodeURIComponent(query))
+  }
   // Captured once per rebuild so every row decays against the same clock.
   property real rankNow: 0
   // Display language for the shipped rows. The code lives in
@@ -902,7 +926,7 @@ Item {
           detail: "Search the web",
           path: "",
           childCount: 0,
-          action: "https://duckduckgo.com/?q=" + encodeURIComponent(query),
+          action: root.webSearchUrl(query),
           provider: "",
           score: 999999,
           section: ""
@@ -1102,7 +1126,12 @@ Item {
       var url = String(row.action || "")
       root.opened = false
       root.filterText = ""
-      if (url) Util.execArgv(["xdg-open", url])
+      // The URL is one argv element to the opener, so the query is never
+      // re-read as shell syntax. Bang rows open the same way.
+      if (url) {
+        if (root.webSearchOpener === "webapp") Util.execArgv(["omarchy-launch-webapp", url])
+        else Util.execArgv(["xdg-open", url])
+      }
     } else if (row.kind === "bang") {
       // A bang hint completes into the search box instead of running.
       root.setFilter(String(row.action || ""))
@@ -1394,6 +1423,23 @@ Item {
   // The JSONC sources are watched so live edits to the default file (or the
   // user extension at ~/.config/omarchy/extensions/omarchy-menu.jsonc) take
   // effect without restarting the shell.
+  // Optional preferences file (search engine, web-search opener). Missing
+  // or invalid is not an error: it just means "use the defaults".
+  FileView {
+    id: userConfigFile
+    path: root.userConfigPath
+    watchChanges: true
+    printErrors: false
+    onLoaded: {
+      try {
+        var parsed = JSON.parse(text() || "{}")
+        root.userConfig = (parsed && typeof parsed === "object" && !(parsed instanceof Array)) ? parsed : ({})
+      } catch (e) { root.userConfig = ({}) }
+    }
+    onLoadFailed: { root.userConfig = ({}) }
+    onFileChanged: reload()
+  }
+
   FileView {
     id: frecencyFile
     path: root.frecencyPath
