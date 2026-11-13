@@ -50,6 +50,22 @@ This is Omarchy's own launcher menu ([`omarchy.menu`](https://github.com/omacom/
 
 Everything else is the stock 4.5 menu, unchanged: the Learn, Appearance, Trigger, Setup, Install, Remove and Update menus; `omarchy menu` routes; dmenu mode; translations; and your `~/.config/omarchy/extensions/omarchy-menu.jsonc` extensions.
 
+## Configuration
+
+The "Search the web" row defaults to DuckDuckGo, opened with `xdg-open` (your default browser). To change either, create `~/.config/skal-menu/config.json`:
+
+```json
+{
+  "webSearchUrl": "https://www.google.com/search?q={query}",
+  "webSearchOpener": "webapp"
+}
+```
+
+- `webSearchUrl` is an `http(s)` URL template with a literal `{query}` placeholder, which is replaced with the URL-encoded search text. It works with any search engine. The default is `https://duckduckgo.com/?q={query}`.
+- `webSearchOpener` is `"browser"` (the default, via `xdg-open`) or `"webapp"` (via `omarchy-launch-webapp`, which opens the result in its own web-app window). `!bang` searches open the same way.
+
+The file is optional and is read again each time the menu opens, so changes apply with no restart. If it's missing, empty or invalid, the defaults above apply.
+
 ## Install
 
 ```bash
