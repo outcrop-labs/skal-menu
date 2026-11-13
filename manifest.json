@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "id": "skal.menu",
   "name": "Skål Menu",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Outcrop Labs",
-  "description": "The Omarchy launcher menu with a built-in calculator: type math like 2+2 or conversions like 5 km to mi right in the search box",
+  "description": "Fully updated for Omarchy 4.5. The Omarchy launcher menu with the features people ask for: a built-in calculator and unit conversions, typo-tolerant search, apps ranked above same-named actions, frecency, glyphs by name, and !bang web searches",
   "kinds": [
     "menu",
     "bar-widget"
