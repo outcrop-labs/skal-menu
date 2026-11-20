@@ -48,6 +48,11 @@ This is Omarchy's own launcher menu ([`omarchy.menu`](https://github.com/omacom/
 
 **Flatpak apps in search**, with icons, even when the session misses their export directories ([#1881](https://github.com/omacom/omarchy/issues/1881), [#8650](https://github.com/omacom/omarchy/issues/8650)).
 
+**Place your own entries.**
+- Rows in `~/.config/omarchy/extensions/omarchy-menu.jsonc` normally land after all stock rows.
+- Add `"after"` with a sibling's id to put a row right behind it: `"utils": {"icon": "󱁤", "label": "Utils", "after": "apps"}` puts Utils second in the root menu.
+- It works in submenus and on stock rows too. An unknown id, or one under another parent, leaves the row where it was.
+
 Everything else is the stock 4.5 menu, unchanged: the Learn, Appearance, Trigger, Setup, Install, Remove and Update menus; `omarchy menu` routes; dmenu mode; translations; and your `~/.config/omarchy/extensions/omarchy-menu.jsonc` extensions.
 
 ## Configuration
