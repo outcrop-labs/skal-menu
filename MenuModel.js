@@ -39,7 +39,8 @@ function normalizeItem(id, raw) {
     searchTerms: normalizeAliases(value.searchTerms),
     when: value.when || "",
     checked: value.checked || "",
-    disabled: value.disabled || ""
+    disabled: value.disabled || "",
+    after: value.after || ""
   }
 }
 
@@ -85,6 +86,19 @@ function keepMenuRows(previous, raw, required) {
   return items
 }
 
+// An unknown `after` id, or one under another parent, leaves the item where its file declared it.
+function placeAfterAnchors(items, order) {
+  var result = order.slice()
+  for (var i = 0; i < order.length; i++) {
+    var item = items[order[i]]
+    var anchor = item && item.after ? items[item.after] : null
+    if (!anchor || anchor.id === item.id || anchor.parent !== item.parent) continue
+    result.splice(result.indexOf(item.id), 1)
+    result.splice(result.indexOf(anchor.id) + 1, 0, item.id)
+  }
+  return result
+}
+
 // The root row has no JSONC entry, so the merge injects it when neither
 // source supplies one; only then does rootLabel (the catalog's translation
 // of "Go") apply. A root row from either source keeps its own label, so a
@@ -110,9 +124,10 @@ function mergeMenuSources(defaultItems, userItems, rootLabel) {
   }
 
   if (!nextItems.root) {
-    nextItems.root = { id: "root", parent: "", kind: "menu", icon: "", iconFont: "", label: (typeof rootLabel === "string" && rootLabel) ? rootLabel : "Go", title: "", target: "", description: "", aliases: [], searchTerms: [], when: "", checked: "", disabled: "", action: "", provider: "" }
+    nextItems.root = { id: "root", parent: "", kind: "menu", icon: "", iconFont: "", label: (typeof rootLabel === "string" && rootLabel) ? rootLabel : "Go", title: "", target: "", description: "", aliases: [], searchTerms: [], when: "", checked: "", disabled: "", action: "", provider: "", after: "" }
     nextOrder.unshift("root")
   }
+  nextOrder = placeAfterAnchors(nextItems, nextOrder)
   for (var k3 = 0; k3 < nextOrder.length; k3++) nextItems[nextOrder[k3]].order = k3
 
   return {
